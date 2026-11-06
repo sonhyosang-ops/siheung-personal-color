@@ -28,6 +28,12 @@ const $ = (id) => document.getElementById(id);
 const screens = ["start", "capture", "check", "result"];
 function show(name) {
   for (const s of screens) $(`screen-${s}`).classList.toggle("active", s === name);
+  const idx = screens.indexOf(name);
+  for (const li of document.querySelectorAll("#steps li")) {
+    const i = screens.indexOf(li.dataset.step);
+    li.classList.toggle("on", i === idx);
+    li.classList.toggle("done", i < idx);
+  }
   window.scrollTo(0, 0);
 }
 function toast(msg, ms = 3400) {
@@ -41,7 +47,7 @@ function toast(msg, ms = 3400) {
 // ─────────────────────────────────────────────
 // 시작 화면
 // ─────────────────────────────────────────────
-for (const btn of document.querySelectorAll(".group-btn")) {
+for (const btn of document.querySelectorAll(".tile[data-group]")) {
   btn.addEventListener("click", () => {
     state.group = btn.dataset.group;
     openCamera();
@@ -241,13 +247,13 @@ function setWhitePoint(p) {
   if (!wb) { toast("그곳은 너무 어두워요. 밝은 흰색 부분을 눌러 주세요."); return; }
   state.wb = wb; state.wbPoint = p; state.wbMode = false;
   updateWbUI(); drawOverlay();
-  toast("색 보정을 적용했어요 ✨");
+  toast("색 보정을 적용했어요");
 }
 function updateWbUI() {
   const b = $("btn-wb"), s = $("wb-status");
-  if (state.wb) { b.textContent = "✖ 색 보정 지우기"; s.textContent = "보정 적용됨"; s.className = "wb-status on"; }
+  if (state.wb) { b.textContent = "색 보정 지우기"; s.textContent = "보정 적용됨"; s.className = "wb-status on"; }
   else if (state.wbMode) { b.textContent = "취소"; s.textContent = "사진에서 흰 부분을 눌러 주세요"; s.className = "wb-status wait"; }
-  else { b.textContent = "⚪ 흰 종이·흰 벽 눌러서 색 보정"; s.textContent = "보정 안 함"; s.className = "wb-status"; }
+  else { b.textContent = "흰 종이·흰 벽 눌러서 색 보정"; s.textContent = "보정 안 함"; s.className = "wb-status"; }
   overlay.classList.toggle("picking", state.wbMode);
 }
 
@@ -282,6 +288,11 @@ function bar(label0, label1, v, color) {
     <span class="bar-r">${label1}</span></div>`;
 }
 
+function chartRows(season) {
+  const row = (label, cols) => `<div class="chart-row"><div class="chart-label">${label}</div><div class="chart-cells">${cols.map((c) => `<i style="background:${c}" title="${c}"></i>`).join("")}</div></div>`;
+  return `<div class="chart">${row("베이스", season.chart.base)}${row("포인트", season.chart.point)}${row("립", season.chart.lip)}</div>`;
+}
+
 function renderResult(typeId, group, bars, res) {
   const type = TYPES[typeId];
   const season = SEASONS[type.season];
@@ -289,56 +300,57 @@ function renderResult(typeId, group, bars, res) {
   const isKid = group === "elem";
   const samples = res?.samples;
   const warn = res?.quality?.warnings || [];
+  $("screen-result").style.setProperty("--season", season.color);
+  $("screen-result").style.setProperty("--season-bg", season.soft);
 
   const sampleRow = samples ? `
     <div class="samples no-print">
       <span>사진에서 읽은 색</span>
       <i style="background:${samples.skin}" title="피부"></i><i style="background:${samples.hair}" title="머리"></i><i style="background:${samples.eye}" title="눈"></i>
     </div>` : "";
-  const warnHtml = warn.length ? `<div class="warn no-print">${warn.map((w) => `<div>⚠️ ${esc(w)}</div>`).join("")}</div>` : "";
+  const warnHtml = warn.length ? `<div class="warn no-print">${warn.map((w) => `<div>${esc(w)}</div>`).join("")}</div>` : "";
+  const traits = `<div class="traits">${season.traits.map((t) => `<span class="trait">${esc(t)}</span>`).join("")}</div>`;
   const barsHtml = `<div class="bars">
-      ${bar("쿨 ❄️", "🔥 웜", bars.warm, season.color)}
-      ${bar("딥 🌑", "☀️ 라이트", bars.light, season.color)}
-      ${bar("뮤트 🌫️", "✨ 브라이트", bars.clear, season.color)}
+      ${bar("쿨", "웜", bars.warm, season.color)}
+      ${bar("딥", "라이트", bars.light, season.color)}
+      ${bar("뮤트", "브라이트", bars.clear, season.color)}
     </div>`;
-  const head = (title, sub, nick) => `
-      <div class="result-head">
-        <div class="result-emoji">${season.emoji}</div>
-        <div>
-          <div class="result-kicker">나의 퍼스널 컬러는</div>
-          <h2 class="result-title">${title} <small>${sub}</small></h2>
-          <div class="result-nick">${esc(nick)}</div>
-        </div>
-      </div>`;
-  const mini = (title) => `<div class="page-mini">${season.emoji} ${title}</div>`;
+  const seasonTitle = `${season.name} ${season.tone}톤`;
+  const chartPage = { label: "계절 색상표", html: `<h3>${esc(seasonTitle)} 색상표 <span class="tag">${esc(season.tagline)}</span></h3>${chartRows(season)}<p class="chart-note">베이스는 옷·가방처럼 넓게 쓰는 색, 포인트는 소품이나 한 가지 강조색, 립은 입술·볼처럼 작은 면적에 쓰는 색이에요.</p>` };
 
-  // 장면별 페이지 (스크롤 대신 넘겨 보기)
-  let pages;
+  let title, sub, nick, pages;
   if (isKid) {
     const k = season.kid;
-    const t = `${season.name}`;
+    title = season.name; sub = `${season.tone}톤`; nick = season.nickname;
     pages = [
-      { label: "내 컬러", html: `${head(t, season.tone + "톤", season.nickname)}<p class="result-summary">${esc(k.summary)}</p>${sampleRow}${warnHtml}` },
-      { label: "어울리는 색", html: `${mini(t)}<h3>🎨 나에게 어울리는 색</h3>${swatches(season.palette)}<p class="good-text">${esc(k.good)}</p>` },
-      { label: "피할 색", html: `${mini(t)}<h3>🙅 조금 피하면 좋은 색</h3>${swatches(season.avoid, false)}<p class="good-text">${esc(k.avoid)}</p>` },
-      { label: "꿀팁", html: `${mini(t)}<h3>💡 꿀팁</h3><ul class="tips">${k.tips.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><div class="cheer">${esc(k.cheer)}</div>` },
+      { label: "내 컬러", html: `<p class="result-summary">${esc(k.summary)}</p>${traits}${sampleRow}${warnHtml}` },
+      chartPage,
+      { label: "어울리는 색", html: `<h3>나에게 어울리는 색</h3>${swatches(season.palette)}<p class="good-text">${esc(k.good)}</p>` },
+      { label: "피할 색", html: `<h3>조금 피하면 좋은 색</h3>${swatches(season.avoid, false)}<p class="good-text">${esc(k.avoid)}</p>` },
+      { label: "꿀팁", html: `<h3>꿀팁</h3><ul class="tips">${k.tips.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><div class="cheer">${esc(k.cheer)}</div>` },
     ];
   } else {
-    const t = esc(type.name);
+    title = type.name; sub = type.en; nick = type.nickname;
     pages = [
-      { label: "내 컬러", html: `${head(t, esc(type.en), type.nickname)}<p class="result-summary">${esc(type.summary)}</p>${barsHtml}${sampleRow}${warnHtml}` },
-      { label: "베스트", html: `${mini(t)}<h3>🎨 베스트 컬러</h3>${swatches(type.palette)}<p class="good-text">${esc(type.good)}</p>` },
-      { label: "워스트", html: `${mini(t)}<h3>🙅 워스트 컬러</h3>${swatches(type.avoidPalette, false)}<p class="good-text">${esc(type.avoid)}</p>` },
-      { label: "스타일 팁", html: `${mini(t)}<h3>💡 스타일 팁</h3><div class="tip-grid">${type.tips.map((x) => `<div class="tip"><b>${esc(x.h)}</b><span>${esc(x.t)}</span></div>`).join("")}</div>` },
+      { label: "내 컬러", html: `<p class="result-summary">${esc(type.summary)}</p>${traits}${barsHtml}${sampleRow}${warnHtml}` },
+      chartPage,
+      { label: "베스트 컬러", html: `<h3>베스트 컬러</h3>${swatches(type.palette)}<p class="good-text">${esc(type.good)}</p>` },
+      { label: "워스트 컬러", html: `<h3>워스트 컬러</h3>${swatches(type.avoidPalette, false)}<p class="good-text">${esc(type.avoid)}</p>` },
+      { label: "스타일 팁", html: `<h3>스타일 팁</h3><div class="tip-grid">${type.tips.map((x) => `<div class="tip"><b>${esc(x.h)}</b><span>${esc(x.t)}</span></div>`).join("")}</div>` },
     ];
   }
-  if (!state.shared) pages.push({ label: "QR", html: `${mini(isKid ? season.name : esc(type.name))}<div class="qr-slot"></div>` });
+  if (!state.shared) pages.push({ label: "QR", html: `<div class="qr-slot"></div>` });
 
-  root.innerHTML = `
-    <div class="card result-card season-${season.id}" style="--season:${season.color};--season-soft:${season.soft}">
-      ${pages.map((p, i) => `<section class="rpage${i === 0 ? " active" : ""}" data-i="${i}">${p.html}</section>`).join("")}
-      <div class="print-foot">시흥교육지원청 교육페스티벌 · 재미로 알아보는 퍼스널 컬러 · 사진·결과는 저장되지 않아요</div>
+  $("result-head").innerHTML = `
+    <div class="result-head">
+      <div class="season-mark" aria-hidden="true">${season.emoji}</div>
+      <div>
+        <div class="result-kicker">나의 퍼스널 컬러</div>
+        <h2 class="result-title">${esc(title)} <small>${esc(sub)}</small></h2>
+        <div class="result-nick">${esc(nick)}</div>
+      </div>
     </div>`;
+  root.innerHTML = pages.map((p, i) => `<section class="rpage${i === 0 ? " active" : ""}" data-i="${i}">${p.html}</section>`).join("");
 
   // QR 카드를 마지막 페이지로 옮김
   const qrCard = $("qr-card");
@@ -358,7 +370,7 @@ function renderResult(typeId, group, bars, res) {
 let pageIdx = 0, pageCount = 0;
 function setupPager(labels) {
   pageIdx = 0; pageCount = labels.length;
-  $("dots").innerHTML = labels.map((l, i) => `<button class="dot${i === 0 ? " on" : ""}" type="button" data-i="${i}" aria-label="${esc(l)}"><span>${esc(l)}</span></button>`).join("");
+  $("dots").innerHTML = labels.map((l, i) => `<button class="dot${i === 0 ? " on" : ""}" type="button" role="tab" data-i="${i}">${esc(l)}</button>`).join("");
   for (const d of $("dots").querySelectorAll(".dot")) d.addEventListener("click", () => goPage(+d.dataset.i));
   updatePager();
 }
@@ -378,9 +390,9 @@ function updatePager() {
   $("btn-prev").disabled = pageIdx === 0;
   const last = pageIdx === pageCount - 1;
   $("btn-next").disabled = last;
-  $("btn-next").textContent = last ? "끝 🎉" : "다음 →";
+  $("btn-next").innerHTML = last ? "완료" : '다음<svg class="ic"><use href="#i-right"/></svg>';
   for (const d of $("dots").querySelectorAll(".dot")) d.classList.toggle("on", +d.dataset.i === pageIdx);
-  $("result-root").querySelector(".result-card")?.scrollTo?.(0, 0);
+  $("result-root").scrollTo?.(0, 0);
 }
 $("btn-prev").addEventListener("click", () => goPage(pageIdx - 1));
 $("btn-next").addEventListener("click", () => goPage(pageIdx + 1));
@@ -428,6 +440,7 @@ $("btn-try").addEventListener("click", () => {
   history.replaceState(null, "", location.pathname);
   $("qr-holder").appendChild($("qr-card"));
   $("result-root").innerHTML = "";
+  $("result-head").innerHTML = "";
   state = freshState();
   show("start");
 });
@@ -444,12 +457,13 @@ function wipeAndRestart(announce) {
   clearPhoto();
   $("qr-holder").appendChild($("qr-card"));
   $("result-root").innerHTML = "";
+  $("result-head").innerHTML = "";
   $("qr-box").innerHTML = "";
   $("qr-url").textContent = "";
   $("btn-shutter").disabled = false;
   state = freshState();
   show("start");
-  if (announce) toast("사진과 결과를 모두 지웠어요 🧹");
+  if (announce) toast("사진과 결과를 모두 지웠어요");
 }
 
 // 5분 무조작 자동 삭제

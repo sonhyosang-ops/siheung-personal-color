@@ -4,12 +4,19 @@
 export const SEASONS = {
   spring: {
     id: "spring",
+    chart: {
+      base: ["#FDEED8", "#FCD6B6", "#FBCAA8", "#F8C99D", "#FAD8A1"],
+      point: ["#F8756A", "#FEAD6F", "#FDB2AE", "#FECF6E", "#BCD276"],
+      lip: ["#FB6E62", "#FE794F", "#FE6D53", "#FC6D6F", "#FC544A"],
+    },
+    traits: ["밝고 화사함", "따뜻한 느낌", "생기 있는 컬러"],
+    tagline: "따뜻하고 밝은 느낌의 화사한 컬러",
     name: "봄",
     emoji: "🌸",
     tone: "웜",
     nickname: "햇살처럼 밝은 봄 친구",
-    color: "#FF9F6B",
-    soft: "#FFE8D6",
+    color: "#F8756A",
+    soft: "#FDEEDD",
     kid: {
       summary: "따뜻하고 밝은 색이 잘 어울려요. 햇살을 받은 것처럼 얼굴이 환해 보이는 색이 봄 색이에요.",
       good: "복숭아색, 노란색, 연두색, 하늘색, 코랄(주황 분홍)",
@@ -26,12 +33,19 @@ export const SEASONS = {
   },
   summer: {
     id: "summer",
+    chart: {
+      base: ["#FCE5E6", "#E1C9D1", "#E0C9D5", "#CECBD3", "#D7D7D9"],
+      point: ["#E4A6B0", "#B687A2", "#BBAFD4", "#A5B9D3", "#7491B8"],
+      lip: ["#C96D81", "#E97080", "#DF89A9", "#D65F7D", "#C4526D"],
+    },
+    traits: ["부드럽고 은은함", "차가운 느낌", "소프트한 컬러"],
+    tagline: "차갑고 부드러운 느낌의 소프트한 컬러",
     name: "여름",
     emoji: "🌊",
     tone: "쿨",
     nickname: "시원하고 부드러운 여름 친구",
-    color: "#8FB8DE",
-    soft: "#E3EEF8",
+    color: "#7491B8",
+    soft: "#ECEFF5",
     kid: {
       summary: "시원하고 부드러운 색이 잘 어울려요. 맑은 여름 하늘과 바다처럼 은은한 색이 여름 색이에요.",
       good: "연분홍, 하늘색, 라벤더(연보라), 민트, 흰색, 연회색",
@@ -48,12 +62,19 @@ export const SEASONS = {
   },
   autumn: {
     id: "autumn",
+    chart: {
+      base: ["#EDD0A7", "#DEB488", "#C79E76", "#C19059", "#A19061"],
+      point: ["#CA622E", "#BB653A", "#C69936", "#6F7637", "#2B514B"],
+      lip: ["#B33D2D", "#B14E36", "#97462F", "#8B3927", "#7A3025"],
+    },
+    traits: ["차분하고 깊이감", "따뜻한 느낌", "무게감 있는 컬러"],
+    tagline: "따뜻하고 차분한 느낌의 깊이 있는 컬러",
     name: "가을",
     emoji: "🍁",
     tone: "웜",
     nickname: "깊고 따뜻한 가을 친구",
-    color: "#C97B4A",
-    soft: "#F3E3D3",
+    color: "#CA622E",
+    soft: "#F5EBDD",
     kid: {
       summary: "깊고 따뜻한 색이 잘 어울려요. 단풍과 낙엽처럼 포근한 색이 가을 색이에요.",
       good: "갈색, 카멜(황갈색), 올리브(짙은 연두), 겨자색, 벽돌색, 주황",
@@ -70,12 +91,19 @@ export const SEASONS = {
   },
   winter: {
     id: "winter",
+    chart: {
+      base: ["#FEFEFE", "#C5C4C9", "#A29FA0", "#585858", "#010101"],
+      point: ["#B3165F", "#8D216C", "#6A4F99", "#122D87", "#0D2655"],
+      lip: ["#B9061F", "#900C2A", "#721948", "#50112E", "#49101B"],
+    },
+    traits: ["선명하고 또렷함", "차가운 느낌", "대비감 있는 컬러"],
+    tagline: "차갑고 선명한 느낌의 또렷한 컬러",
     name: "겨울",
     emoji: "❄️",
     tone: "쿨",
     nickname: "또렷하고 시원한 겨울 친구",
-    color: "#4A5CB8",
-    soft: "#E2E4F5",
+    color: "#122D87",
+    soft: "#E8EAF2",
     kid: {
       summary: "또렷하고 선명한 색이 잘 어울려요. 눈 내린 밤하늘처럼 진하고 깨끗한 색이 겨울 색이에요.",
       good: "검정, 흰색, 진한 파랑, 빨강, 보라, 선명한 핫핑크",
