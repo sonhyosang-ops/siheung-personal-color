@@ -34,7 +34,7 @@
 - 결과지를 인쇄하려면 인쇄 대화상자에서 **용지 A4, 배경 그래픽 켜기**를 선택하세요.
 
 ## 배포 (GitHub Pages)
-1. 저장소 **Settings → Pages → Build and deployment → Source** 를 **GitHub Actions** 로 바꿉니다.
+1. 저장소 **Settings → Pages → Build and deployment → Source** 를 **GitHub Actions** 로 바꿉니다. (이 설정이 꺼져 있으면 배포 워크플로가 `Create Pages site failed` 로 실패하고 주소는 404가 납니다.)
 2. `main` 브랜치에 푸시하면 `.github/workflows/deploy-pages.yml` 이 자동 배포합니다. (Actions 탭에서 수동 실행도 가능)
 
 ## 파일
