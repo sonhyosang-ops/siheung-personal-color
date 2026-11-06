@@ -295,75 +295,108 @@ function renderResult(typeId, group, bars, res) {
       <span>사진에서 읽은 색</span>
       <i style="background:${samples.skin}" title="피부"></i><i style="background:${samples.hair}" title="머리"></i><i style="background:${samples.eye}" title="눈"></i>
     </div>` : "";
-
+  const warnHtml = warn.length ? `<div class="warn no-print">${warn.map((w) => `<div>⚠️ ${esc(w)}</div>`).join("")}</div>` : "";
   const barsHtml = `<div class="bars">
       ${bar("쿨 ❄️", "🔥 웜", bars.warm, season.color)}
       ${bar("딥 🌑", "☀️ 라이트", bars.light, season.color)}
       ${bar("뮤트 🌫️", "✨ 브라이트", bars.clear, season.color)}
     </div>`;
+  const head = (title, sub, nick) => `
+      <div class="result-head">
+        <div class="result-emoji">${season.emoji}</div>
+        <div>
+          <div class="result-kicker">나의 퍼스널 컬러는</div>
+          <h2 class="result-title">${title} <small>${sub}</small></h2>
+          <div class="result-nick">${esc(nick)}</div>
+        </div>
+      </div>`;
+  const mini = (title) => `<div class="page-mini">${season.emoji} ${title}</div>`;
 
+  // 장면별 페이지 (스크롤 대신 넘겨 보기)
+  let pages;
   if (isKid) {
     const k = season.kid;
-    root.innerHTML = `
-    <div class="card result-card season-${season.id}" style="--season:${season.color};--season-soft:${season.soft}">
-      <div class="result-head">
-        <div class="result-emoji">${season.emoji}</div>
-        <div>
-          <div class="result-kicker">나의 퍼스널 컬러는</div>
-          <h2 class="result-title">${season.name} <small>${season.tone}톤</small></h2>
-          <div class="result-nick">${esc(season.nickname)}</div>
-        </div>
-      </div>
-      <p class="result-summary">${esc(k.summary)}</p>
-      ${sampleRow}
-      <h3>🎨 나에게 어울리는 색</h3>
-      ${swatches(season.palette)}
-      <p class="good-text">${esc(k.good)}</p>
-      <h3>🙅 조금 피하면 좋은 색</h3>
-      ${swatches(season.avoid, false)}
-      <p class="good-text">${esc(k.avoid)}</p>
-      <h3>💡 꿀팁</h3>
-      <ul class="tips">${k.tips.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
-      <div class="cheer">${esc(k.cheer)}</div>
-      ${warn.length ? `<div class="warn no-print">${warn.map((w) => `<div>⚠️ ${esc(w)}</div>`).join("")}</div>` : ""}
-      <div class="print-foot">시흥교육지원청 교육페스티벌 · 재미로 알아보는 퍼스널 컬러 · 사진·결과는 저장되지 않아요</div>
-    </div>`;
+    const t = `${season.name}`;
+    pages = [
+      { label: "내 컬러", html: `${head(t, season.tone + "톤", season.nickname)}<p class="result-summary">${esc(k.summary)}</p>${sampleRow}${warnHtml}` },
+      { label: "어울리는 색", html: `${mini(t)}<h3>🎨 나에게 어울리는 색</h3>${swatches(season.palette)}<p class="good-text">${esc(k.good)}</p>` },
+      { label: "피할 색", html: `${mini(t)}<h3>🙅 조금 피하면 좋은 색</h3>${swatches(season.avoid, false)}<p class="good-text">${esc(k.avoid)}</p>` },
+      { label: "꿀팁", html: `${mini(t)}<h3>💡 꿀팁</h3><ul class="tips">${k.tips.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><div class="cheer">${esc(k.cheer)}</div>` },
+    ];
   } else {
-    root.innerHTML = `
+    const t = esc(type.name);
+    pages = [
+      { label: "내 컬러", html: `${head(t, esc(type.en), type.nickname)}<p class="result-summary">${esc(type.summary)}</p>${barsHtml}${sampleRow}${warnHtml}` },
+      { label: "베스트", html: `${mini(t)}<h3>🎨 베스트 컬러</h3>${swatches(type.palette)}<p class="good-text">${esc(type.good)}</p>` },
+      { label: "워스트", html: `${mini(t)}<h3>🙅 워스트 컬러</h3>${swatches(type.avoidPalette, false)}<p class="good-text">${esc(type.avoid)}</p>` },
+      { label: "스타일 팁", html: `${mini(t)}<h3>💡 스타일 팁</h3><div class="tip-grid">${type.tips.map((x) => `<div class="tip"><b>${esc(x.h)}</b><span>${esc(x.t)}</span></div>`).join("")}</div>` },
+    ];
+  }
+  if (!state.shared) pages.push({ label: "QR", html: `${mini(isKid ? season.name : esc(type.name))}<div class="qr-slot"></div>` });
+
+  root.innerHTML = `
     <div class="card result-card season-${season.id}" style="--season:${season.color};--season-soft:${season.soft}">
-      <div class="result-head">
-        <div class="result-emoji">${season.emoji}</div>
-        <div>
-          <div class="result-kicker">나의 퍼스널 컬러는</div>
-          <h2 class="result-title">${esc(type.name)} <small>${esc(type.en)}</small></h2>
-          <div class="result-nick">${esc(type.nickname)}</div>
-        </div>
-      </div>
-      <p class="result-summary">${esc(type.summary)}</p>
-      ${barsHtml}
-      ${sampleRow}
-      <h3>🎨 베스트 컬러</h3>
-      ${swatches(type.palette)}
-      <p class="good-text">${esc(type.good)}</p>
-      <h3>🙅 워스트 컬러</h3>
-      ${swatches(type.avoidPalette, false)}
-      <p class="good-text">${esc(type.avoid)}</p>
-      <h3>💡 스타일 팁</h3>
-      <div class="tip-grid">${type.tips.map((t) => `<div class="tip"><b>${esc(t.h)}</b><span>${esc(t.t)}</span></div>`).join("")}</div>
-      ${warn.length ? `<div class="warn no-print">${warn.map((w) => `<div>⚠️ ${esc(w)}</div>`).join("")}</div>` : ""}
+      ${pages.map((p, i) => `<section class="rpage${i === 0 ? " active" : ""}" data-i="${i}">${p.html}</section>`).join("")}
       <div class="print-foot">시흥교육지원청 교육페스티벌 · 재미로 알아보는 퍼스널 컬러 · 사진·결과는 저장되지 않아요</div>
     </div>`;
-  }
 
-  // QR
+  // QR 카드를 마지막 페이지로 옮김
+  const qrCard = $("qr-card");
+  const slot = root.querySelector(".qr-slot");
+  if (slot) { slot.appendChild(qrCard); qrCard.hidden = false; } else { $("qr-holder").appendChild(qrCard); qrCard.hidden = true; }
   const url = shareUrl(typeId, group, bars);
   renderQR(url);
   $("qr-url").textContent = url.replace(/^https?:\/\//, "");
+
   $("btn-try").hidden = !state.shared;
   $("btn-restart").hidden = state.shared;
-  $("qr-card").hidden = state.shared;
+  setupPager(pages.map((p) => p.label));
   touch();
 }
+
+// ───── 결과 페이지 넘기기 ─────
+let pageIdx = 0, pageCount = 0;
+function setupPager(labels) {
+  pageIdx = 0; pageCount = labels.length;
+  $("dots").innerHTML = labels.map((l, i) => `<button class="dot${i === 0 ? " on" : ""}" type="button" data-i="${i}" aria-label="${esc(l)}"><span>${esc(l)}</span></button>`).join("");
+  for (const d of $("dots").querySelectorAll(".dot")) d.addEventListener("click", () => goPage(+d.dataset.i));
+  updatePager();
+}
+function goPage(i) {
+  if (i < 0 || i >= pageCount) return;
+  const prev = pageIdx; pageIdx = i;
+  for (const sec of document.querySelectorAll(".rpage")) {
+    const on = +sec.dataset.i === i;
+    sec.classList.toggle("active", on);
+    sec.classList.toggle("from-right", on && i > prev);
+    sec.classList.toggle("from-left", on && i < prev);
+  }
+  updatePager();
+  touch();
+}
+function updatePager() {
+  $("btn-prev").disabled = pageIdx === 0;
+  const last = pageIdx === pageCount - 1;
+  $("btn-next").disabled = last;
+  $("btn-next").textContent = last ? "끝 🎉" : "다음 →";
+  for (const d of $("dots").querySelectorAll(".dot")) d.classList.toggle("on", +d.dataset.i === pageIdx);
+  $("result-root").querySelector(".result-card")?.scrollTo?.(0, 0);
+}
+$("btn-prev").addEventListener("click", () => goPage(pageIdx - 1));
+$("btn-next").addEventListener("click", () => goPage(pageIdx + 1));
+document.addEventListener("keydown", (e) => {
+  if (!$("screen-result").classList.contains("active")) return;
+  if (e.key === "ArrowRight") goPage(pageIdx + 1);
+  if (e.key === "ArrowLeft") goPage(pageIdx - 1);
+});
+// 스와이프
+let swipe = null;
+$("result-root").addEventListener("pointerdown", (e) => { swipe = { x: e.clientX, y: e.clientY }; });
+$("result-root").addEventListener("pointerup", (e) => {
+  if (!swipe) return;
+  const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y; swipe = null;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) goPage(pageIdx + (dx < 0 ? 1 : -1));
+});
 
 function shareUrl(typeId, group, bars) {
   const code = TYPE_CODES[typeId];
@@ -393,6 +426,8 @@ $("btn-print").addEventListener("click", () => window.print());
 $("btn-restart").addEventListener("click", () => wipeAndRestart(true));
 $("btn-try").addEventListener("click", () => {
   history.replaceState(null, "", location.pathname);
+  $("qr-holder").appendChild($("qr-card"));
+  $("result-root").innerHTML = "";
   state = freshState();
   show("start");
 });
@@ -407,6 +442,7 @@ function clearPhoto() {
 function wipeAndRestart(announce) {
   stopCamera();
   clearPhoto();
+  $("qr-holder").appendChild($("qr-card"));
   $("result-root").innerHTML = "";
   $("qr-box").innerHTML = "";
   $("qr-url").textContent = "";

@@ -93,10 +93,23 @@
     </div>
   </main>
 
-  <!-- 4. 결과 -->
+  <!-- 4. 결과 (장면별로 넘겨 보기) -->
   <main id="screen-result" class="screen">
     <div id="result-root"></div>
-    <div class="card qr-card no-print" id="qr-card">
+    <div class="result-nav no-print">
+      <button id="btn-prev" class="btn btn-soft" type="button">← 이전</button>
+      <div id="dots" class="dots" role="tablist"></div>
+      <button id="btn-next" class="btn btn-primary" type="button">다음 →</button>
+    </div>
+    <div class="result-actions no-print">
+      <button id="btn-print" class="btn btn-ghost btn-small" type="button">🖨️ A4로 인쇄</button>
+      <button id="btn-try" class="btn btn-primary btn-small" type="button" hidden>🎨 나도 해보기</button>
+      <button id="btn-restart" class="btn btn-ghost btn-small" type="button">🏠 처음으로 (사진 삭제)</button>
+    </div>
+  </main>
+
+  <div id="qr-holder" hidden>
+    <div class="qr-card no-print" id="qr-card">
       <h3>📱 결과를 폰으로 가져가요</h3>
       <div class="qr-row">
         <div id="qr-box" class="qr-box" aria-label="결과 QR 코드"></div>
@@ -106,12 +119,7 @@
         </div>
       </div>
     </div>
-    <div class="result-actions no-print">
-      <button id="btn-print" class="btn btn-soft" type="button">🖨️ A4로 인쇄</button>
-      <button id="btn-try" class="btn btn-primary" type="button" hidden>🎨 나도 해보기</button>
-      <button id="btn-restart" class="btn btn-primary" type="button">🏠 처음으로 (사진 삭제)</button>
-    </div>
-  </main>
+  </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
