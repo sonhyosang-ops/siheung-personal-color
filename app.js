@@ -26,14 +26,13 @@ function freshState() {
 
 const $ = (id) => document.getElementById(id);
 const screens = ["start", "capture", "check", "result"];
+const STEP_NAMES = { start: "", capture: "2 / 4 · 촬영", check: "3 / 4 · 확인", result: "4 / 4 · 결과" };
 function show(name) {
   for (const s of screens) $(`screen-${s}`).classList.toggle("active", s === name);
   const idx = screens.indexOf(name);
-  for (const li of document.querySelectorAll("#steps li")) {
-    const i = screens.indexOf(li.dataset.step);
-    li.classList.toggle("on", i === idx);
-    li.classList.toggle("done", i < idx);
-  }
+  document.body.classList.toggle("in-flow", idx > 0);
+  $("nav-step").textContent = STEP_NAMES[name] || "";
+  $("progress-fill").style.width = `${(idx / (screens.length - 1)) * 100}%`;
   window.scrollTo(0, 0);
 }
 function toast(msg, ms = 3400) {
@@ -45,14 +44,101 @@ function toast(msg, ms = 3400) {
 }
 
 // ─────────────────────────────────────────────
-// 시작 화면
+// 시작 화면: 페이지 넘김 (버튼 · 점 · 키보드 · 스와이프)
 // ─────────────────────────────────────────────
-for (const btn of document.querySelectorAll(".tile[data-group]")) {
-  btn.addEventListener("click", () => {
-    state.group = btn.dataset.group;
-    openCamera();
+const slideEls = [...document.querySelectorAll("#slides .slide")];
+let slideIdx = 0;
+function goSlide(i) {
+  slideIdx = Math.max(0, Math.min(slideEls.length - 1, i));
+  $("slides-track").style.transform = `translateX(${-slideIdx * 100}%)`;
+  slideEls.forEach((el, k) => {
+    el.classList.toggle("current", k === slideIdx);
+    el.inert = k !== slideIdx;
   });
+  document.querySelectorAll("#slide-dots button").forEach((d, k) => d.classList.toggle("on", k === slideIdx));
+  $("slide-prev").disabled = slideIdx === 0;
+  $("slide-next").disabled = slideIdx === slideEls.length - 1;
 }
+document.querySelectorAll("[data-go]").forEach((el) => el.addEventListener("click", () => goSlide(+el.dataset.go)));
+$("slide-prev").addEventListener("click", () => goSlide(slideIdx - 1));
+$("slide-next").addEventListener("click", () => goSlide(slideIdx + 1));
+(() => {
+  const track = $("slides-track");
+  let x0 = null, y0 = 0, dx = 0, horizontal = null;
+  $("slides").addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" || e.target.closest("input, button, label")) return;
+    x0 = e.clientX; y0 = e.clientY; dx = 0; horizontal = null;
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (x0 === null) return;
+    dx = e.clientX - x0;
+    if (horizontal === null && (Math.abs(dx) > 8 || Math.abs(e.clientY - y0) > 8)) horizontal = Math.abs(dx) > Math.abs(e.clientY - y0);
+    if (!horizontal) return;
+    track.classList.add("dragging");
+    track.style.transform = `translateX(calc(${-slideIdx * 100}% + ${dx}px))`;
+  });
+  const end = () => {
+    if (x0 === null) return;
+    track.classList.remove("dragging");
+    if (horizontal && Math.abs(dx) > 60) goSlide(slideIdx + (dx < 0 ? 1 : -1));
+    else goSlide(slideIdx);
+    x0 = null;
+  };
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
+})();
+goSlide(0);
+
+// 계절 그라데이션(색상표 포인트 색)
+const SEASON_ORDER = ["spring", "summer", "autumn", "winter"];
+function seasonGrad(season) {
+  const c = season.chart.point;
+  return `linear-gradient(90deg, ${c[0]} 0%, ${c[1]} 35%, ${c[2]} 65%, ${c[4]} 100%)`;
+}
+// 1쪽: 계절 이름 돌아가며 보여 주기
+(() => {
+  const el = $("hero-type"), wrap = el.parentElement;
+  let k = 0;
+  const apply = () => { const sn = SEASONS[SEASON_ORDER[k]]; el.textContent = `${sn.name} ${sn.tone}`; wrap.style.setProperty("--season-grad", seasonGrad(sn)); };
+  apply();
+  setInterval(() => {
+    el.classList.add("swap");
+    setTimeout(() => { k = (k + 1) % SEASON_ORDER.length; apply(); el.classList.remove("swap"); }, 500);
+  }, 2600);
+})();
+// 2쪽: 네 계절 타일
+$("bento").innerHTML = SEASON_ORDER.map((id) => {
+  const sn = SEASONS[id];
+  return `<article class="tile" style="--tint:${sn.color}">
+    <p class="tile-label">${sn.name} ${sn.tone}톤</p>
+    <p class="tile-name">${sn.name}</p>
+    <div class="tile-colors" aria-hidden="true">${sn.chart.point.map((c) => `<i style="background:${c}"></i>`).join("")}</div>
+    <p class="tile-desc">${sn.tagline}</p>
+  </article>`;
+}).join("");
+// 3쪽: 학교 선택 → 촬영
+const GROUP_HINT = { elem: "봄·여름·가을·겨울 네 가지로 알려 드려요", teen: "봄 웜 라이트처럼 12가지 세부 유형으로 알려 드려요" };
+document.querySelectorAll('input[name="group"]').forEach((r) => r.addEventListener("change", () => { $("group-hint").textContent = GROUP_HINT[r.value]; }));
+$("start-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  state.group = new FormData(e.target).get("group") || "elem";
+  openCamera();
+});
+$("nav-home").addEventListener("click", () => {
+  if (state.shared) { history.replaceState(null, "", location.pathname); document.body.classList.remove("viewer"); state = freshState(); show("start"); goSlide(0); return; }
+  if ($("screen-start").classList.contains("active")) return goSlide(0);
+  wipeAndRestart(false);
+});
+document.addEventListener("keydown", (e) => {
+  if (document.querySelector("dialog[open]") || e.target.matches("input, textarea")) return;
+  if ($("screen-start").classList.contains("active")) {
+    if (e.key === "ArrowRight" || e.key === "PageDown") goSlide(slideIdx + 1);
+    if (e.key === "ArrowLeft" || e.key === "PageUp") goSlide(slideIdx - 1);
+  } else if ($("screen-result").classList.contains("active")) {
+    if (e.key === "ArrowRight") goPage(pageIdx + 1);
+    if (e.key === "ArrowLeft") goPage(pageIdx - 1);
+  }
+});
 
 // ─────────────────────────────────────────────
 // 카메라
@@ -300,8 +386,9 @@ function renderResult(typeId, group, bars, res) {
   const isKid = group === "elem";
   const samples = res?.samples;
   const warn = res?.quality?.warnings || [];
-  $("screen-result").style.setProperty("--season", season.color);
-  $("screen-result").style.setProperty("--season-bg", season.soft);
+  const screen = $("screen-result");
+  screen.style.setProperty("--season", season.color);
+  screen.style.setProperty("--season-grad", seasonGrad(season));
 
   const sampleRow = samples ? `
     <div class="samples no-print">
@@ -309,98 +396,69 @@ function renderResult(typeId, group, bars, res) {
       <i style="background:${samples.skin}" title="피부"></i><i style="background:${samples.hair}" title="머리"></i><i style="background:${samples.eye}" title="눈"></i>
     </div>` : "";
   const warnHtml = warn.length ? `<div class="warn no-print">${warn.map((w) => `<div>${esc(w)}</div>`).join("")}</div>` : "";
-  const traits = `<div class="traits">${season.traits.map((t) => `<span class="trait">${esc(t)}</span>`).join("")}</div>`;
   const barsHtml = `<div class="bars">
       ${bar("쿨", "웜", bars.warm, season.color)}
       ${bar("딥", "라이트", bars.light, season.color)}
       ${bar("뮤트", "브라이트", bars.clear, season.color)}
     </div>`;
-  const seasonTitle = `${season.name} ${season.tone}톤`;
-  const chartPage = { label: "계절 색상표", html: `<h3>${esc(seasonTitle)} 색상표 <span class="tag">${esc(season.tagline)}</span></h3>${chartRows(season)}<p class="chart-note">베이스는 옷·가방처럼 넓게 쓰는 색, 포인트는 소품이나 한 가지 강조색, 립은 입술·볼처럼 작은 면적에 쓰는 색이에요.</p>` };
+  const chartPage = { html: `<h3>${esc(season.name)} ${esc(season.tone)}톤 색상표</h3><p class="sub">${esc(season.tagline)} · 베이스는 넓게 쓰는 색, 포인트는 강조색, 립은 입술·볼처럼 작은 면적에 쓰는 색이에요.</p>${chartRows(season)}` };
 
-  let title, sub, nick, pages;
+  let title, sub, nick, summary, pages;
   if (isKid) {
     const k = season.kid;
-    title = season.name; sub = `${season.tone}톤`; nick = season.nickname;
+    title = season.name; sub = `${season.tone}톤`; nick = season.nickname; summary = k.summary;
     pages = [
-      { label: "내 컬러", html: `<p class="result-summary">${esc(k.summary)}</p>${traits}${sampleRow}${warnHtml}` },
       chartPage,
-      { label: "어울리는 색", html: `<h3>나에게 어울리는 색</h3>${swatches(season.palette)}<p class="good-text">${esc(k.good)}</p>` },
-      { label: "피할 색", html: `<h3>조금 피하면 좋은 색</h3>${swatches(season.avoid, false)}<p class="good-text">${esc(k.avoid)}</p>` },
-      { label: "꿀팁", html: `<h3>꿀팁</h3><ul class="tips">${k.tips.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><div class="cheer">${esc(k.cheer)}</div>` },
+      { html: `<h3>나에게 어울리는 색</h3><p class="sub">${esc(k.good)}</p>${swatches(season.palette)}` },
+      { html: `<h3>조금 피하면 좋은 색</h3><p class="sub">${esc(k.avoid)}</p>${swatches(season.avoid, false)}` },
+      { html: `<h3>꿀팁</h3><ul class="tips">${k.tips.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><div class="cheer">${esc(k.cheer)}</div>${sampleRow}${warnHtml}` },
     ];
   } else {
-    title = type.name; sub = type.en; nick = type.nickname;
+    title = type.name; sub = type.en; nick = type.nickname; summary = type.summary;
     pages = [
-      { label: "내 컬러", html: `<p class="result-summary">${esc(type.summary)}</p>${traits}${barsHtml}${sampleRow}${warnHtml}` },
+      { html: `<h3>어떻게 판정했나요</h3><p class="sub">사진에서 읽은 피부·머리카락·눈 색을 세 가지 축으로 나눠 봤어요.</p>${barsHtml}${sampleRow}${warnHtml}` },
       chartPage,
-      { label: "베스트 컬러", html: `<h3>베스트 컬러</h3>${swatches(type.palette)}<p class="good-text">${esc(type.good)}</p>` },
-      { label: "워스트 컬러", html: `<h3>워스트 컬러</h3>${swatches(type.avoidPalette, false)}<p class="good-text">${esc(type.avoid)}</p>` },
-      { label: "스타일 팁", html: `<h3>스타일 팁</h3><div class="tip-grid">${type.tips.map((x) => `<div class="tip"><b>${esc(x.h)}</b><span>${esc(x.t)}</span></div>`).join("")}</div>` },
+      { html: `<h3>베스트 컬러</h3><p class="sub">${esc(type.good)}</p>${swatches(type.palette)}` },
+      { html: `<h3>워스트 컬러</h3><p class="sub">${esc(type.avoid)}</p>${swatches(type.avoidPalette, false)}` },
+      { html: `<h3>스타일 팁</h3><div class="tip-grid">${type.tips.map((x) => `<div class="tip"><b>${esc(x.h)}</b><span>${esc(x.t)}</span></div>`).join("")}</div>` },
     ];
   }
-  if (!state.shared) pages.push({ label: "QR", html: `<div class="qr-slot"></div>` });
 
-  $("result-head").innerHTML = `
-    <div class="result-head">
-      <div class="season-mark" aria-hidden="true">${season.emoji}</div>
-      <div>
-        <div class="result-kicker">나의 퍼스널 컬러</div>
-        <h2 class="result-title">${esc(title)} <small>${esc(sub)}</small></h2>
-        <div class="result-nick">${esc(nick)}</div>
-      </div>
-    </div>`;
-  root.innerHTML = pages.map((p, i) => `<section class="rpage${i === 0 ? " active" : ""}" data-i="${i}">${p.html}</section>`).join("");
+  $("result-type").innerHTML = `${esc(title)}<small>${esc(sub)}</small>`;
+  $("result-nick").textContent = nick;
+  $("result-summary").textContent = summary;
+  $("result-traits").innerHTML = season.traits.map((t) => `<span>${esc(t)}</span>`).join("");
+  root.innerHTML = pages.map((p, i) => `<section class="rpage${i === 0 ? " active" : ""}" data-i="${i}">${p.html}</section>`).join("")
+    + `<div class="print-foot">교육페스티벌 · 재미로 알아보는 퍼스널 컬러 · 사진과 결과는 저장되지 않아요</div>`;
 
-  // QR 카드를 마지막 페이지로 옮김
-  const qrCard = $("qr-card");
-  const slot = root.querySelector(".qr-slot");
-  if (slot) { slot.appendChild(qrCard); qrCard.hidden = false; } else { $("qr-holder").appendChild(qrCard); qrCard.hidden = true; }
-  const url = shareUrl(typeId, group, bars);
-  renderQR(url);
-  $("qr-url").textContent = url.replace(/^https?:\/\//, "");
-
-  $("btn-try").hidden = !state.shared;
-  $("btn-restart").hidden = state.shared;
-  setupPager(pages.map((p) => p.label));
+  document.body.classList.toggle("viewer", state.shared);
+  if (!state.shared) {
+    const url = shareUrl(typeId, group, bars);
+    renderQR(url, $("qr-box"), 4);
+    renderQR(url, $("qr-big"), 8);
+  }
+  setupPager(pages.length);
   touch();
 }
 
 // ───── 결과 페이지 넘기기 ─────
 let pageIdx = 0, pageCount = 0;
-function setupPager(labels) {
-  pageIdx = 0; pageCount = labels.length;
-  $("dots").innerHTML = labels.map((l, i) => `<button class="dot${i === 0 ? " on" : ""}" type="button" role="tab" data-i="${i}">${esc(l)}</button>`).join("");
-  for (const d of $("dots").querySelectorAll(".dot")) d.addEventListener("click", () => goPage(+d.dataset.i));
-  updatePager();
-}
+function setupPager(n) { pageIdx = 0; pageCount = n; updatePager(); }
 function goPage(i) {
   if (i < 0 || i >= pageCount) return;
-  const prev = pageIdx; pageIdx = i;
-  for (const sec of document.querySelectorAll(".rpage")) {
-    const on = +sec.dataset.i === i;
-    sec.classList.toggle("active", on);
-    sec.classList.toggle("from-right", on && i > prev);
-    sec.classList.toggle("from-left", on && i < prev);
-  }
+  pageIdx = i;
+  for (const sec of document.querySelectorAll(".rpage")) sec.classList.toggle("active", +sec.dataset.i === i);
   updatePager();
   touch();
 }
 function updatePager() {
-  $("btn-prev").disabled = pageIdx === 0;
-  const last = pageIdx === pageCount - 1;
-  $("btn-next").disabled = last;
-  $("btn-next").innerHTML = last ? "완료" : '다음<svg class="ic"><use href="#i-right"/></svg>';
-  for (const d of $("dots").querySelectorAll(".dot")) d.classList.toggle("on", +d.dataset.i === pageIdx);
+  $("sheet-prev").disabled = pageIdx === 0;
+  $("sheet-next").disabled = pageIdx === pageCount - 1;
+  $("sheet-count").textContent = `${pageIdx + 1} / ${pageCount}`;
   $("result-root").scrollTo?.(0, 0);
 }
-$("btn-prev").addEventListener("click", () => goPage(pageIdx - 1));
-$("btn-next").addEventListener("click", () => goPage(pageIdx + 1));
-document.addEventListener("keydown", (e) => {
-  if (!$("screen-result").classList.contains("active")) return;
-  if (e.key === "ArrowRight") goPage(pageIdx + 1);
-  if (e.key === "ArrowLeft") goPage(pageIdx - 1);
-});
+$("sheet-prev").addEventListener("click", () => goPage(pageIdx - 1));
+$("sheet-next").addEventListener("click", () => goPage(pageIdx + 1));
 // 스와이프
 let swipe = null;
 $("result-root").addEventListener("pointerdown", (e) => { swipe = { x: e.clientX, y: e.clientY }; });
@@ -409,6 +467,7 @@ $("result-root").addEventListener("pointerup", (e) => {
   const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y; swipe = null;
   if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) goPage(pageIdx + (dx < 0 ? 1 : -1));
 });
+$("qr-card").addEventListener("click", () => $("dlg-qr").showModal());
 
 function shareUrl(typeId, group, bars) {
   const code = TYPE_CODES[typeId];
@@ -423,26 +482,26 @@ function parseShare(hash) {
   if (!typeId) return null;
   return { typeId, group: m[2] === "e" ? "elem" : "teen", bars: { warm: +m[3], light: +m[4], clear: +m[5] } };
 }
-function renderQR(url) {
-  const box = $("qr-box");
+function renderQR(url, box, cell) {
   box.innerHTML = "";
   try {
     const qr = window.qrcode(0, "M");
     qr.addData(url);
     qr.make();
-    box.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+    box.innerHTML = qr.createSvgTag({ cellSize: cell, margin: 2, scalable: true });
   } catch { box.textContent = "QR을 만들 수 없어요"; }
 }
 
 $("btn-print").addEventListener("click", () => window.print());
+$("btn-print-view").addEventListener("click", () => window.print());
 $("btn-restart").addEventListener("click", () => wipeAndRestart(true));
 $("btn-try").addEventListener("click", () => {
   history.replaceState(null, "", location.pathname);
-  $("qr-holder").appendChild($("qr-card"));
+  document.body.classList.remove("viewer");
   $("result-root").innerHTML = "";
-  $("result-head").innerHTML = "";
   state = freshState();
   show("start");
+  goSlide(0);
 });
 
 // ─────────────────────────────────────────────
@@ -455,26 +514,32 @@ function clearPhoto() {
 function wipeAndRestart(announce) {
   stopCamera();
   clearPhoto();
-  $("qr-holder").appendChild($("qr-card"));
   $("result-root").innerHTML = "";
-  $("result-head").innerHTML = "";
   $("qr-box").innerHTML = "";
-  $("qr-url").textContent = "";
+  $("qr-big").innerHTML = "";
+  document.body.classList.remove("viewer");
   $("btn-shutter").disabled = false;
   state = freshState();
   show("start");
+  goSlide(0);
   if (announce) toast("사진과 결과를 모두 지웠어요");
 }
 
 // 5분 무조작 자동 삭제
-let idleTimer = null;
+let idleTimer = null, idleAt = 0;
 function touch() {
   clearTimeout(idleTimer);
   if (state.shared) return;
+  idleAt = Date.now() + IDLE_WIPE_MS;
   idleTimer = setTimeout(() => {
     if (!$("screen-start").classList.contains("active")) wipeAndRestart(true);
   }, IDLE_WIPE_MS);
 }
+setInterval(() => {
+  if (!$("screen-result").classList.contains("active") || state.shared) return;
+  const left = Math.max(0, Math.round((idleAt - Date.now()) / 1000));
+  $("countdown").textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+}, 1000);
 for (const ev of ["pointerdown", "keydown", "touchstart"]) document.addEventListener(ev, touch, { passive: true });
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
@@ -489,5 +554,6 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
     state.group = shared.group;
     renderResult(shared.typeId, shared.group, shared.bars, null);
     show("result");
+    history.replaceState(null, "", location.pathname); // 휴대폰 주소창·방문 기록에서 결과 정보 제거
   }
 })();

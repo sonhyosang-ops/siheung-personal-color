@@ -42,3 +42,4 @@
 - `analysis.js` — 색 추출과 유형 판정
 - `data.js` — 4계절·12유형 해설, 팔레트, 팁
 - `vendor/qrcode-generator-1.4.4.js` — QR 생성 라이브러리 (MIT, Kazuhiko Arase)
+- `vendor/pretendard/` — Pretendard 글꼴 (SIL OFL). 디자인은 같은 부스의 [성격 탐험(MBTI) 앱](https://github.com/sonhyosang-ops/sihueng-mbti)과 동일한 토큰·레이아웃을 씁니다.
